@@ -5,11 +5,15 @@ import pandas
 import time
 from scapy.all import *
 
+from frametypes import *
+from subtypes import *
+
 flag = True
 time_to_sniff = 10
-observedclients = []
-stamgmtstypes = (0, 2, 4)
-interfaceglob = ""
+observed_clients = []
+client_subtypes =   (ManagmentFrameSubType.AssociationRequest, 
+                    ManagmentFrameSubType.ReassociationRequest,
+                    ManagmentFrameSubType.ProbeRequest)
 
 # initialize the networks dataframe that will contain all access points nearby
 networks = pandas.DataFrame(columns=["BSSID", "SSID", "dBm_Signal", "Channel", "Crypto"])
@@ -54,12 +58,20 @@ def test(packet):
             print("********** new packet **********")
             print (packet[Dot11].addr1)
 
+def discover_clients_of_ap(ap_mac, packet):
+    #Check if this is a client's packet and the destination is the target AP
+    if packet.type == FrameType.Management and \
+    packet.subtype in client_subtypes and packet.addr3 == ap_mac:
+         if packet.addr2 not in observed_clients:
+                print ("New client discovered: " + str(packet.addr2))
+                observed_clients.append(packet.addr2)
+    
 
-    # pkt = scapy.all.RadioTap()/scapy.all.Dot11(addr1="28:16:7f:fc:97:f1", addr2=temp, addr3=temp)/scapy.all.Dot11Deauth()
-    # scapy.all.sendp(pkt, iface=interfaceglob, count=1, inter=.2, verbose=0)
-    # if packet.type == 0 and packet.subtype in stamgmtstypes: #Managment frame
-    #     # if(packet.addr2 == "28:16:7f:fc:97:f1"):
-    #     if packet.addr2 not in observedclients:
+def discover_clients(packet):
+    discover_clients_of_ap("00:b8:c2:6b:a2:bb", packet)
+    # if packet.type == FrameType.Management and \
+    # packet.subtype in client_subtypes:
+    #     if packet.addr2 not in observed_clients:
     #             print (packet.addr2)
     #             observed_clients.append(packet.addr2)
 
