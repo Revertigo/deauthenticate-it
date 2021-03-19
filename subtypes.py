@@ -9,3 +9,6 @@ class ManagmentFrameSubType(IntEnum):
 class ControlFrameSubType(IntEnum):
     BAR = 8 #Block Ack Request
     BA = 9 #Block Ack
+
+class DataFrameSubType(IntEnum):
+    QOS_NULL = 12
