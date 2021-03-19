@@ -1,3 +1,3 @@
-from enum import Enum
-class FrameType(Enum):
+from enum import IntEnum
+class FrameType(IntEnum):
     Management = 0
