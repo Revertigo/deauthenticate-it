@@ -135,7 +135,7 @@ def get_index_input(message, input_dict):
          
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print ("Too many or too less arguments")
+        print ("Usage: sudo python3 deauthentication-attack.py <INTERFACE>")
     else:
         interface = sys.argv[1]
         change_to_monitor(interface)
