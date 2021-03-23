@@ -74,31 +74,43 @@ def discover_clients_of_ap(ap_mac, packet):
     global clients_counter
 
     #Check if this is a client's packet and the destination is the target AP
-    if packet.type == FrameType.Data and packet.subtype in data_subtypes \
-        and packet.addr1 == ap_mac:
-         if packet.addr2 not in observed_clients.values():
-                print (str(len(observed_clients) + 1 ) + \
-                ". New client discovered: " + packet.addr2 + " Type: " + str(packet.type) + " Subtype: " + str(packet.subtype))
-                observed_clients[clients_counter] = packet.addr2
-                clients_counter += 1
-    
-    #Check if this is a client's packet and the destination is the target AP
-    if packet.type == FrameType.Control and packet.subtype in control_subtypes \
-        and packet.addr1 == ap_mac:
-         if packet.addr2 not in observed_clients.values():
-                print (str(len(observed_clients) + 1 ) + \
-                ". New client discovered: " + packet.addr2 + " Type: " + str(packet.type) + " Subtype: " + str(packet.subtype))
+    if (packet.type == FrameType.Data and packet.subtype in data_subtypes \
+        and packet.addr1 == ap_mac) or \
+        (packet.type == FrameType.Control and packet.subtype in control_subtypes \
+        and packet.addr1 == ap_mac) or \
+        (packet.type == FrameType.Management and packet.subtype in management_subtypes \
+        and packet.addr1 == ap_mac):    
+            if packet.addr2 not in observed_clients.values():
+                address = packet.addr2
+                #Retrive manufacturer from address (if exists)
+                manufacturer = get_manufacturer(packet.addr2)
+                if(manufacturer != False):
+                    address = manufacturer + packet.addr2[8:]
+
+                print (str(clients_counter) + ". " + address + " Type: " + \
+                        str(packet.type) + " Subtype: " + str(packet.subtype))
                 observed_clients[clients_counter] = packet.addr2
                 clients_counter += 1
 
-    #Check if this is a client's packet and the destination is the target AP
-    if packet.type == FrameType.Management and packet.subtype in management_subtypes \
-        and packet.addr1 == ap_mac:
-         if packet.addr2 not in observed_clients:
-                print (str(len(observed_clients) + 1 ) + \
-                ". New client discovered: " + packet.addr2 + " Type: " + str(packet.type) + " Subtype: " + str(packet.subtype))
-                observed_clients[clients_counter] = packet.addr2
-                clients_counter += 1
+def get_manufacturer(mac_address):
+    #Read first 3 bytes from MAC address
+    bytes_mac_address = mac_address.split(':')
+    manufacturer = bytes_mac_address[0] + bytes_mac_address[1] + bytes_mac_address[2] 
+    #Convert it to uppercase letter
+    manufacturer = manufacturer.upper()
+
+    with open('manufacturers.txt') as f:
+        lines = f.readlines()
+
+        for line in lines:
+            split_line = line.split('\t')
+            if(split_line[0] == manufacturer):
+                #Remove new line at the end
+                return split_line[1].rstrip()
+    
+    return False
+        
+    
     
 def discover_clients(packet):
     discover_clients_of_ap(target_ap, packet)
@@ -139,7 +151,6 @@ if __name__ == "__main__":
     else:
         interface = sys.argv[1]
         change_to_monitor(interface)
-
         channel_changer = Thread(target=change_channel)
         channel_changer.daemon = True
         channel_changer.start()
