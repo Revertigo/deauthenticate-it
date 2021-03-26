@@ -8,6 +8,7 @@ from scapy.all import *
 from frametypes import *
 from subtypes import *
 
+manufacturers = {}
 management_subtypes =  (ManagmentFrameSubType.AssociationRequest, 
                         ManagmentFrameSubType.ReassociationRequest,
                         ManagmentFrameSubType.ProbeRequest,
@@ -99,18 +100,20 @@ def get_manufacturer(mac_address):
     #Convert it to uppercase letter
     manufacturer = manufacturer.upper()
 
-    with open('manufacturers.txt') as f:
+    if manufacturer in manufacturers:
+        return manufacturers[manufacturer]
+    
+    return False
+        
+def load_manufacturers():
+     with open('manufacturers.txt') as f:
         lines = f.readlines()
 
         for line in lines:
             split_line = line.split('\t')
-            if(split_line[0] == manufacturer):
-                #Remove new line at the end
-                return split_line[1].rstrip()
-    
-    return False
-        
-    
+            #split_line[0]=MAC address, #split_line[1]=Manufacturer
+            manufacturers[split_line[0]] = split_line[1].rstrip()#Remove line feed
+
     
 def discover_clients(packet):
     discover_clients_of_ap(target_ap, packet)
@@ -148,7 +151,11 @@ def get_index_input(message, input_dict):
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print ("Usage: sudo python3 deauthentication-attack.py <INTERFACE>")
+        exit(0)
     else:
+        #Load list of manufacturers to a dictionary
+        load_manufacturers()
+
         interface = sys.argv[1]
         change_to_monitor(interface)
         channel_changer = Thread(target=change_channel)
