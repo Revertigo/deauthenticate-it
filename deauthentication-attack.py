@@ -75,12 +75,10 @@ def discover_clients_of_ap(ap_mac, packet):
     global clients_counter
 
     #Check if this is a client's packet and the destination is the target AP
-    if (packet.type == FrameType.Data and packet.subtype in data_subtypes \
-        and packet.addr1 == ap_mac) or \
-        (packet.type == FrameType.Control and packet.subtype in control_subtypes \
-        and packet.addr1 == ap_mac) or \
-        (packet.type == FrameType.Management and packet.subtype in management_subtypes \
-        and packet.addr1 == ap_mac):    
+    if ((packet.type == FrameType.Data and packet.subtype in data_subtypes) or \
+        (packet.type == FrameType.Control and packet.subtype in control_subtypes) or \
+        (packet.type == FrameType.Management and packet.subtype in management_subtypes)) \
+        and packet.addr1 == ap_mac:    
             if packet.addr2 not in observed_clients.values():
                 address = packet.addr2
                 #Retrive manufacturer from address (if exists)
