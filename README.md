@@ -10,4 +10,6 @@
 ```
 
 ## Usage
+```
 sudo python3 deauthentication-attack.py <INTERFACE>
+```
