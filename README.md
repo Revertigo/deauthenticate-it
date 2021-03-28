@@ -5,7 +5,8 @@
     | |__| | |  __/ | (_| | | |_| | | |_  | | | | |  __/ | | | | | |_  | | | (__  | (_| | | |_  |  __/          | | | |_ 
     |_____/   \___|  \__,_|  \__,_|  \__| |_| |_|  \___| |_| |_|  \__| |_|  \___|  \__,_|  \__|  \___|          |_|  \__|
                                                                                                                       
-                                                                                                                      
+
+![build-passing](https://img.shields.io/badge/build-passing-brightgreen) ![python-v3.8.5](https://img.shields.io/badge/python-v3.8.5-blue)                                                                                                                      
 
 ## Overview
 This project is a simple but yet powerfull and easy to use deauthentication-attack tool.
