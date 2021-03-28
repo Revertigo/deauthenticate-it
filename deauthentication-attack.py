@@ -64,13 +64,6 @@ def change_to_monitor(interface):
     os.system("iwconfig " + interface + " mode monitor")
     os.system("ifconfig " + interface + " up")
 
-def test(packet):
-    temp = "68:ff:7b:b5:aa:e4"
-    if packet.haslayer(Dot11):
-        if packet[Dot11].addr2 == temp:
-            print("********** new packet **********")
-            print (packet[Dot11].addr1)
-
 def discover_clients_of_ap(ap_mac, packet):
     global clients_counter
 
