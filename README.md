@@ -7,6 +7,8 @@
                                                                                                                       
                                                                                                                       
 
+## Overview
+This project is a simple but yet powerfull and easy to use deauthentication-attack tool.
 
 ## Prerequisites
 * A Linux based OS
