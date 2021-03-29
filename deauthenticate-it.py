@@ -80,8 +80,7 @@ def discover_clients_of_ap(ap_mac, packet):
                 if(manufacturer != False):
                     address = manufacturer + packet.addr2[8:]
 
-                print (str(clients_counter) + ". " + address + " Type: " + \
-                        str(packet.type) + " Subtype: " + str(packet.subtype))
+                print (str(clients_counter) + ". " + address)
                 observed_clients[clients_counter] = packet.addr2
                 clients_counter += 1
 
